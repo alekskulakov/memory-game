@@ -49,7 +49,7 @@ class MainMenuScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Главное меню'),
+        title: const Text('Main Menu'),
         centerTitle: true,
       ),
       body: Center(
@@ -65,12 +65,12 @@ class MainMenuScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () => Navigator.pushNamed(context, '/game'),
-              child: const Text('Начать новую игру'),
+              child: const Text('Start New Game'),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => Navigator.pushNamed(context, '/results'),
-              child: const Text('Таблица результатов'),
+              child: const Text('Results Table'),
             ),
           ],
         ),
@@ -118,7 +118,7 @@ class _GameScreenState extends State<GameScreen> {
   Future<void> _saveResult() async {
     final prefs = await SharedPreferences.getInstance();
     List<String> history = prefs.getStringList('game_history') ?? [];
-    history.insert(0, '${DateTime.now().toLocal().toString().substring(0, 16)}: $moves ходов');
+    history.insert(0, '${DateTime.now().toLocal().toString().substring(0, 16)}: $moves moves');
     if (history.length > 10) history = history.sublist(0, 10);
     await prefs.setStringList('game_history', history);
   }
@@ -127,22 +127,22 @@ class _GameScreenState extends State<GameScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Игра завершена!'),
-        content: Text('Вы справились за $moves ходов'),
+        title: const Text('Game Over!'),
+        content: Text('You completed in $moves moves'),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _startNewGame();
             },
-            child: const Text('Новая игра'),
+            child: const Text('New Game'),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.pushNamed(context, '/results');
             },
-            child: const Text('Результаты'),
+            child: const Text('Results'),
           ),
         ],
       ),
@@ -248,7 +248,7 @@ class ResultsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Таблица результатов')),
+      appBar: AppBar(title: const Text('Results Table')),
       body: FutureBuilder<List<String>>(
         future: _loadResults(),
         builder: (context, snapshot) {
@@ -258,7 +258,7 @@ class ResultsScreen extends StatelessWidget {
 
           final results = snapshot.data ?? [];
           if (results.isEmpty) {
-            return const Center(child: Text('Нет сохранённых результатов'));
+            return const Center(child: Text('No saved results'));
           }
 
           return ListView.builder(
