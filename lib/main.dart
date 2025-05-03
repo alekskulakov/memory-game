@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:math';
-
 import 'package:flutter/material.dart';
-
-import 'MainMenuScreen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MemoryGameApp());
@@ -22,6 +20,10 @@ class MemoryGameApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const MainMenuScreen(),
+      routes: {
+        '/game': (context) => const GameScreen(),
+        '/results': (context) => const ResultsScreen(),
+      },
     );
   }
 }
@@ -40,6 +42,43 @@ class MemoryCard {
   });
 }
 
+class MainMenuScreen extends StatelessWidget {
+  const MainMenuScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Главное меню'),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              child: Text(
+                'Memory Game',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pushNamed(context, '/game'),
+              child: const Text('Начать новую игру'),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => Navigator.pushNamed(context, '/results'),
+              child: const Text('Таблица результатов'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
 
@@ -50,8 +89,8 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   List<MemoryCard> cards = [];
   MemoryCard? firstSelectedCard;
-  bool isBusy = false; // To prevent rapid taps
-
+  bool isBusy = false;
+  int moves = 0;
   final List<String> animalEmojis = [
     "🐶", "🐱", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁",
   ];
@@ -65,47 +104,79 @@ class _GameScreenState extends State<GameScreen> {
   void _startNewGame() {
     List<String> contents = List.from(animalEmojis)..addAll(animalEmojis);
     contents.shuffle(Random());
-
     cards = List.generate(
       contents.length,
-      (index) => MemoryCard(id: index, content: contents[index]),
+          (index) => MemoryCard(id: index, content: contents[index]),
     );
-
     setState(() {
       firstSelectedCard = null;
       isBusy = false;
+      moves = 0;
     });
+  }
+
+  Future<void> _saveResult() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> history = prefs.getStringList('game_history') ?? [];
+    history.insert(0, '${DateTime.now().toLocal().toString().substring(0, 16)}: $moves ходов');
+    if (history.length > 10) history = history.sublist(0, 10);
+    await prefs.setStringList('game_history', history);
+  }
+
+  void _showGameOverDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Игра завершена!'),
+        content: Text('Вы справились за $moves ходов'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _startNewGame();
+            },
+            child: const Text('Новая игра'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/results');
+            },
+            child: const Text('Результаты'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onCardTapped(MemoryCard card) async {
     if (isBusy || card.isFaceUp || card.isMatched) return;
 
-    setState(() {
-      card.isFaceUp = true;
-    });
+    setState(() => card.isFaceUp = true);
 
     if (firstSelectedCard == null) {
       firstSelectedCard = card;
     } else {
       isBusy = true;
+      moves++;
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      if (firstSelectedCard!.content == card.content) {
-        // Match found
-        setState(() {
+      setState(() {
+        if (firstSelectedCard!.content == card.content) {
           firstSelectedCard!.isMatched = true;
           card.isMatched = true;
-        });
-      } else {
-        // Not a match
-        await Future.delayed(const Duration(seconds: 1));
-        setState(() {
+        } else {
           firstSelectedCard!.isFaceUp = false;
           card.isFaceUp = false;
-        });
-      }
+        }
+        firstSelectedCard = null;
+        isBusy = false;
+      });
 
-      firstSelectedCard = null;
-      isBusy = false;
+      if (cards.every((c) => c.isMatched)) {
+        await _saveResult();
+        _showGameOverDialog();
+      }
     }
   }
 
@@ -122,22 +193,17 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: GridView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: cards.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          itemBuilder: (context, index) {
-            final card = cards[index];
-            return GestureDetector(
-              onTap: () => _onCardTapped(card),
-              child: CardTile(card: card),
-            );
-          },
+      body: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: cards.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemBuilder: (context, index) => GestureDetector(
+          onTap: () => _onCardTapped(cards[index]),
+          child: CardTile(card: cards[index]),
         ),
       ),
     );
@@ -146,24 +212,63 @@ class _GameScreenState extends State<GameScreen> {
 
 class CardTile extends StatelessWidget {
   final MemoryCard card;
-
   const CardTile({super.key, required this.card});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
         color: card.isFaceUp || card.isMatched ? Colors.white : Colors.blue,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.black26),
       ),
       child: Center(
-        child: Text(
-          card.isFaceUp || card.isMatched ? card.content : '',
-          style: const TextStyle(
-            fontSize: 32,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Text(
+            card.isFaceUp || card.isMatched ? card.content : '',
+            style: const TextStyle(fontSize: 32),
+            key: ValueKey(card.isFaceUp),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class ResultsScreen extends StatelessWidget {
+  const ResultsScreen({super.key});
+
+  Future<List<String>> _loadResults() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('game_history') ?? [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Таблица результатов')),
+      body: FutureBuilder<List<String>>(
+        future: _loadResults(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final results = snapshot.data ?? [];
+          if (results.isEmpty) {
+            return const Center(child: Text('Нет сохранённых результатов'));
+          }
+
+          return ListView.builder(
+            itemCount: results.length,
+            itemBuilder: (context, index) => ListTile(
+              leading: Text('${index + 1}.'),
+              title: Text(results[index]),
+            ),
+          );
+        },
       ),
     );
   }
