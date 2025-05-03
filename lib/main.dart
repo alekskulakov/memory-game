@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'MainMenuScreen.dart';
+
 void main() {
   runApp(const MemoryGameApp());
 }
@@ -19,7 +21,7 @@ class MemoryGameApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const GameScreen(),
+      home: const MainMenuScreen(),
     );
   }
 }
