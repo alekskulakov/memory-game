@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:confetti/confetti.dart';
 
 void main() {
   runApp(const MemoryGameApp());
@@ -95,10 +97,19 @@ class _GameScreenState extends State<GameScreen> {
     "🐶", "🐱", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐭", "🐸", "🐷", "🐮"
   ];
 
+  late ConfettiController _confettiController;
+
   @override
   void initState() {
     super.initState();
     _startNewGame();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 5));
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
   }
 
   void _startNewGame() {
@@ -172,7 +183,8 @@ class _GameScreenState extends State<GameScreen> {
       });
       if (cards.every((c) => c.isMatched)) {
         await _saveResult();
-        _showGameOverDialog();
+        _confettiController.play();
+        Future.delayed(const Duration(milliseconds: 500), _showGameOverDialog);
       }
     }
   }
@@ -190,18 +202,44 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ],
       ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: cards.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-        ),
-        itemBuilder: (context, index) => GestureDetector(
-          onTap: () => _onCardTapped(cards[index]),
-          child: CardTile(card: cards[index]),
-        ),
+      body: Stack(
+        children: [
+          // Конфетти сверху
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: pi / 2, // Направление вниз
+              emissionFrequency: 0.1,
+              numberOfParticles: 50,
+              minBlastForce: 5,
+              maxBlastForce: 15,
+              gravity: 0.3,
+              colors: const [
+                Colors.blue,
+                Colors.pink,
+                Colors.orange,
+                Colors.green,
+                Colors.purple
+              ],
+              shouldLoop: false,
+              blastDirectionality: BlastDirectionality.directional,
+            ),
+          ),
+          GridView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: cards.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemBuilder: (context, index) => GestureDetector(
+              onTap: () => _onCardTapped(cards[index]),
+              child: CardTile(card: cards[index]),
+            ),
+          ),
+        ],
       ),
     );
   }
