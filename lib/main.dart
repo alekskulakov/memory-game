@@ -92,7 +92,7 @@ class _GameScreenState extends State<GameScreen> {
   bool isBusy = false;
   int moves = 0;
   final List<String> animalEmojis = [
-    "🐶", "🐱", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁",
+    "🐶", "🐱", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐭", "🐸", "🐷", "🐮"
   ];
 
   @override
