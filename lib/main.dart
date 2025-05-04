@@ -87,7 +87,7 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  List<MemoryCard> cards = [];
+  late List<MemoryCard> cards;
   MemoryCard? firstSelectedCard;
   bool isBusy = false;
   int moves = 0;
@@ -115,7 +115,7 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  Future<void> _saveResult() async {
+  Future _saveResult() async {
     final prefs = await SharedPreferences.getInstance();
     List<String> history = prefs.getStringList('game_history') ?? [];
     history.insert(0, '${DateTime.now().toLocal().toString().substring(0, 16)}: $moves moves');
@@ -127,7 +127,7 @@ class _GameScreenState extends State<GameScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Game Over!'),
+        title: const Text('You win 🥇'),
         content: Text('You completed in $moves moves'),
         actions: [
           TextButton(
@@ -151,7 +151,6 @@ class _GameScreenState extends State<GameScreen> {
 
   void _onCardTapped(MemoryCard card) async {
     if (isBusy || card.isFaceUp || card.isMatched) return;
-
     setState(() => card.isFaceUp = true);
 
     if (firstSelectedCard == null) {
@@ -160,7 +159,6 @@ class _GameScreenState extends State<GameScreen> {
       isBusy = true;
       moves++;
       await Future.delayed(const Duration(milliseconds: 500));
-
       setState(() {
         if (firstSelectedCard!.content == card.content) {
           firstSelectedCard!.isMatched = true;
@@ -172,7 +170,6 @@ class _GameScreenState extends State<GameScreen> {
         firstSelectedCard = null;
         isBusy = false;
       });
-
       if (cards.every((c) => c.isMatched)) {
         await _saveResult();
         _showGameOverDialog();
@@ -255,12 +252,10 @@ class ResultsScreen extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
           final results = snapshot.data ?? [];
           if (results.isEmpty) {
             return const Center(child: Text('No saved results'));
           }
-
           return ListView.builder(
             itemCount: results.length,
             itemBuilder: (context, index) => ListTile(
